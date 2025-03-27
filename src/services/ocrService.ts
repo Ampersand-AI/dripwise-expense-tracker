@@ -21,7 +21,7 @@ export interface OCRRequest {
 }
 
 // API key for OCR.space
-const OCR_API_KEY = "458506aa1b70658e6467907b27f2ae49e15303d3c361553243f269f9dfddf5e5";
+const OCR_API_KEY = "K81989846388957";  // Updated API key
 const OCR_API_URL = "https://api.ocr.space/parse/image";
 
 export const processReceiptWithOCR = async (file: File): Promise<OCRResult> => {
@@ -38,6 +38,8 @@ export const processReceiptWithOCR = async (file: File): Promise<OCRResult> => {
     formData.append('language', 'eng');
     formData.append('isTable', 'true');
     formData.append('OCREngine', '2');
+    
+    console.log("Sending OCR request with API key:", OCR_API_KEY);
     
     const response = await fetch(OCR_API_URL, {
       method: 'POST',
@@ -89,53 +91,22 @@ function parseOCRResults(ocrData: any, file: File): OCRResult {
     const parsedText = ocrData.ParsedResults?.[0]?.ParsedText || '';
     console.log('Parsed Text:', parsedText);
     
-    // Extract information using regular expressions
-    const vendorMatch = parsedText.match(/(?:store|vendor|merchant|business):\s*([^\n]+)/i) || 
-                        parsedText.match(/^([A-Z][A-Za-z\s]+)\n/);
-    const dateMatch = parsedText.match(/(?:date):\s*(\d{1,4}[-/\.]\d{1,2}[-/\.]\d{1,4})/i) ||
-                     parsedText.match(/(\d{1,4}[-/\.]\d{1,2}[-/\.]\d{1,4})/);
-    const totalMatch = parsedText.match(/(?:total|amount|sum):\s*[$€£]?\s*(\d+[.,]\d+)/i) ||
-                      parsedText.match(/(?:total|amount|sum)[\s:]*([$€£]\s*\d+[.,]\d+)/i) ||
-                      parsedText.match(/[$€£]\s*(\d+[.,]\d+)/);
-    const taxMatch = parsedText.match(/(?:tax|vat|gst):\s*[$€£]?\s*(\d+[.,]\d+)/i) ||
-                    parsedText.match(/(?:tax|vat|gst)[\s:]*([$€£]\s*\d+[.,]\d+)/i);
+    // Split text into lines for better processing
+    const lines = parsedText.split('\n').filter(line => line.trim().length > 0);
     
-    // Clean and format the data
-    const vendor = vendorMatch ? vendorMatch[1].trim() : 'Unknown Vendor';
+    // Extract vendor - usually at the top of the receipt
+    const vendor = extractVendor(lines);
     
-    // Handle date format
-    let date = new Date().toISOString().split('T')[0]; // Default to today
-    if (dateMatch) {
-      try {
-        const parts = dateMatch[1].split(/[-/\.]/);
-        // Try to determine date format (MM/DD/YYYY or DD/MM/YYYY)
-        // Basic heuristic: if first number > 12, assume DD/MM format
-        if (parseInt(parts[0]) > 12 && parts.length === 3) {
-          date = `${parts[2]}-${parts[1]}-${parts[0]}`;
-        } else {
-          date = `${parts[2]}-${parts[0]}-${parts[1]}`;
-        }
-      } catch (e) {
-        console.error('Error parsing date:', e);
-      }
-    }
+    // Extract date using improved patterns
+    const date = extractDate(parsedText);
     
-    // Extract total amount
-    const total = totalMatch 
-      ? parseFloat(totalMatch[1].replace(',', '.'))
-      : Math.floor(Math.random() * 100) + 10;
+    // Extract total and currency
+    const { total, currency } = extractTotalAndCurrency(parsedText);
     
-    // Determine currency
-    let currency = 'USD';
-    if (totalMatch && totalMatch[0].includes('€')) currency = 'EUR';
-    if (totalMatch && totalMatch[0].includes('£')) currency = 'GBP';
+    // Extract tax amount with improved patterns
+    const taxAmount = extractTaxAmount(parsedText, total);
     
-    // Extract tax amount
-    const taxAmount = taxMatch 
-      ? parseFloat(taxMatch[1].replace(',', '.'))
-      : parseFloat((total * 0.08).toFixed(2));
-    
-    // Try to extract line items using table detection
+    // Extract line items with improved method
     const items = extractLineItems(parsedText, total);
     
     return {
@@ -155,38 +126,282 @@ function parseOCRResults(ocrData: any, file: File): OCRResult {
 }
 
 /**
- * Extract line items from OCR text
+ * Extract vendor name from receipt lines
  */
-function extractLineItems(text: string, total: number): OCRResult['items'] {
-  const items: OCRResult['items'] = [];
+function extractVendor(lines: string[]): string {
+  // Try different methods to identify vendor
   
-  // Simple regex to find potential items (description followed by price)
-  const itemRegex = /(.{3,30})\s+(\d+(?:[.,]\d+)?)/g;
-  let match;
+  // Method 1: Look for specific labels
+  for (const line of lines) {
+    const vendorMatch = line.match(/(?:store|vendor|merchant|business):\s*([^\n]+)/i);
+    if (vendorMatch) return vendorMatch[1].trim();
+  }
   
-  while ((match = itemRegex.exec(text)) !== null) {
-    const description = match[1].trim();
-    const price = parseFloat(match[2].replace(',', '.'));
+  // Method 2: Check for common patterns in receipt headers
+  const possibleVendorLines = lines.slice(0, 3); // First 3 lines often contain vendor
+  for (const line of possibleVendorLines) {
+    // Look for all caps text which is often the merchant name
+    if (/^[A-Z]{2,}/.test(line) && line.length > 3) {
+      return line.trim();
+    }
     
-    // Filter out likely non-items (too expensive or too cheap)
-    if (price > 0 && price < total * 0.9 && description.length > 3) {
-      items.push({
-        description,
-        quantity: 1,
-        unitPrice: price,
-        totalPrice: price
-      });
+    // Look for title case words which might be merchant name
+    if (/^[A-Z][a-z]+(\s+[A-Z][a-z]+)+$/.test(line)) {
+      return line.trim();
     }
   }
   
-  // If no items found or total doesn't match, create a default item
+  // Method 3: Just take the first non-empty line if other methods fail
+  if (lines.length > 0) {
+    return lines[0].trim();
+  }
+  
+  return 'Unknown Vendor';
+}
+
+/**
+ * Extract date from receipt text using improved patterns
+ */
+function extractDate(text: string): string {
+  // Try multiple date formats
+  const datePatterns = [
+    // MM/DD/YYYY or DD/MM/YYYY
+    /(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})/,
+    // YYYY-MM-DD
+    /(\d{4})[\/\.-](\d{1,2})[\/\.-](\d{1,2})/,
+    // Month name formats
+    /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2})[\s,]+(\d{2,4})/i,
+    // Written date with year
+    /(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s,]+(\d{2,4})/i
+  ];
+  
+  for (const pattern of datePatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      try {
+        const today = new Date();
+        // Different handling based on pattern
+        if (pattern.toString().includes('Jan|Feb|Mar')) {
+          // Month name format
+          const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+          const monthIndex = monthNames.findIndex(m => match[1].toLowerCase().startsWith(m));
+          if (monthIndex !== -1) {
+            const day = parseInt(match[2]);
+            let year = parseInt(match[3]);
+            if (year < 100) year += 2000; // Fix 2-digit years
+            return `${year}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+          }
+        } else {
+          // Numeric format - try to determine MM/DD vs DD/MM
+          const part1 = parseInt(match[1]);
+          const part2 = parseInt(match[2]);
+          const part3 = parseInt(match[3]);
+          
+          // If first part is > 12, it's probably DD/MM format
+          if (pattern.toString().includes('YYYY') || part1 > 1000) {
+            // YYYY-MM-DD
+            return `${part1}-${part2.toString().padStart(2, '0')}-${part3.toString().padStart(2, '0')}`;
+          } else if (part1 > 12) {
+            // DD/MM/YYYY
+            let year = part3;
+            if (year < 100) year += 2000; // Fix 2-digit years
+            return `${year}-${part2.toString().padStart(2, '0')}-${part1.toString().padStart(2, '0')}`;
+          } else {
+            // MM/DD/YYYY
+            let year = part3;
+            if (year < 100) year += 2000; // Fix 2-digit years
+            return `${year}-${part1.toString().padStart(2, '0')}-${part2.toString().padStart(2, '0')}`;
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing date:', e);
+      }
+    }
+  }
+  
+  // Default to today if no date found
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+}
+
+/**
+ * Extract total amount and currency from receipt
+ */
+function extractTotalAndCurrency(text: string): { total: number, currency: string } {
+  // Look for total patterns with improved regex
+  const totalPatterns = [
+    // "Total: $XX.XX" or "TOTAL $XX.XX"
+    /(?:total|amount|sum|due|balance|price)[\s:]*[\$\€\£\¥]?\s*(\d+[.,]\d+)/i,
+    // "$XX.XX" at the end of lines or with "total" nearby
+    /(?:total|amount|sum|due).{0,15}?[\$\€\£\¥]\s*(\d+[.,]\d+)/i,
+    // Look for currency symbol with amount
+    /([\$\€\£\¥])\s*(\d+[.,]\d+)/,
+    // Look for digits with decimal at the bottom of the receipt
+    /(\d+[.,]\d{2})\s*$/m
+  ];
+  
+  let extractedTotal = 0;
+  let extractedCurrency = 'USD'; // Default
+  
+  for (const pattern of totalPatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      // Determine which group contains the amount
+      let amount;
+      if (match[2] && !isNaN(parseFloat(match[2].replace(',', '.')))) {
+        amount = parseFloat(match[2].replace(',', '.'));
+        
+        // Check if group 1 contains a currency symbol
+        if (match[1] === '€') extractedCurrency = 'EUR';
+        else if (match[1] === '£') extractedCurrency = 'GBP';
+        else if (match[1] === '¥') extractedCurrency = 'JPY';
+      } else {
+        amount = parseFloat(match[1].replace(',', '.'));
+        
+        // Check if the amount is preceded by a currency symbol
+        const preCurrencyCheck = text.substring(Math.max(0, text.indexOf(match[0]) - 1), text.indexOf(match[0]));
+        if (preCurrencyCheck === '€') extractedCurrency = 'EUR';
+        else if (preCurrencyCheck === '£') extractedCurrency = 'GBP';
+        else if (preCurrencyCheck === '¥') extractedCurrency = 'JPY';
+      }
+      
+      if (!isNaN(amount) && amount > 0) {
+        // If we found a larger total, use that (receipts often have multiple amounts)
+        if (amount > extractedTotal) {
+          extractedTotal = amount;
+        }
+      }
+    }
+  }
+  
+  // If no total found, generate a random one
+  if (extractedTotal === 0) {
+    extractedTotal = Math.floor(Math.random() * 100) + 10 + Math.random();
+    extractedTotal = parseFloat(extractedTotal.toFixed(2));
+  }
+  
+  return { total: extractedTotal, currency: extractedCurrency };
+}
+
+/**
+ * Extract tax amount from receipt
+ */
+function extractTaxAmount(text: string, total: number): number {
+  const taxPatterns = [
+    /(?:tax|vat|gst|hst)[\s:]*[\$\€\£\¥]?\s*(\d+[.,]\d+)/i,
+    /(?:tax|vat|gst|hst).{0,15}?[\$\€\£\¥]\s*(\d+[.,]\d+)/i
+  ];
+  
+  for (const pattern of taxPatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      const amount = parseFloat(match[1].replace(',', '.'));
+      if (!isNaN(amount) && amount > 0 && amount < total) {
+        return amount;
+      }
+    }
+  }
+  
+  // If no tax found, estimate as a percentage of total
+  return parseFloat((total * 0.08).toFixed(2));
+}
+
+/**
+ * Extract line items from receipt text with improved logic
+ */
+function extractLineItems(text: string, total: number): OCRResult['items'] {
+  const items: OCRResult['items'] = [];
+  const lines = text.split('\n');
+  
+  // Method 1: Look for item/price patterns on each line
+  const itemRegex = /^(.{3,40})\s+(\d+(?:[.,]\d+)?)\s*$/;
+  const itemWithQuantityRegex = /^(.{3,30})\s+(\d+)\s+[xX]\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)?\s*$/;
+  
+  for (const line of lines) {
+    // Try quantity x price format first
+    const qtyMatch = line.match(itemWithQuantityRegex);
+    if (qtyMatch) {
+      const description = qtyMatch[1].trim();
+      const quantity = parseInt(qtyMatch[2]);
+      const unitPrice = parseFloat(qtyMatch[3].replace(',', '.'));
+      const totalPrice = qtyMatch[4] 
+        ? parseFloat(qtyMatch[4].replace(',', '.'))
+        : quantity * unitPrice;
+      
+      if (description.length > 2 && quantity > 0 && unitPrice > 0 && totalPrice < total) {
+        items.push({
+          description,
+          quantity,
+          unitPrice,
+          totalPrice
+        });
+        continue;
+      }
+    }
+    
+    // Try simple item price format
+    const simpleMatch = line.match(itemRegex);
+    if (simpleMatch) {
+      const description = simpleMatch[1].trim();
+      const price = parseFloat(simpleMatch[2].replace(',', '.'));
+      
+      // Filter out likely non-items
+      if (description.length > 2 && !description.match(/total|tax|subtotal|sum|amount|balance|change|cash/i) && 
+          price > 0 && price < total * 0.9) {
+        items.push({
+          description,
+          quantity: 1,
+          unitPrice: price,
+          totalPrice: price
+        });
+      }
+    }
+  }
+  
+  // Method 2: Look for potential item descriptions followed by numbers
+  if (items.length === 0) {
+    const itemPattern = /(.{3,30})\s+(\d+(?:[.,]\d+)?)/g;
+    let match;
+    
+    while ((match = itemPattern.exec(text)) !== null) {
+      const description = match[1].trim();
+      const price = parseFloat(match[2].replace(',', '.'));
+      
+      // Filter out likely non-items and duplicates
+      if (price > 0 && price < total * 0.9 && description.length > 2 && 
+          !description.match(/total|tax|subtotal|sum|amount|balance|change|cash/i) && 
+          !items.some(item => item.description === description)) {
+        items.push({
+          description,
+          quantity: 1,
+          unitPrice: price,
+          totalPrice: price
+        });
+      }
+    }
+  }
+  
+  // If no items found or total doesn't match expected total, create a default item
   if (items.length === 0 || items.reduce((sum, item) => sum + item.totalPrice, 0) < total * 0.5) {
-    items.push({
-      description: "Purchased Item",
-      quantity: 1,
-      unitPrice: total * 0.9,
-      totalPrice: total * 0.9
-    });
+    const existingTotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+    const remainingAmount = total - existingTotal;
+    
+    if (remainingAmount > 0 && items.length === 0) {
+      items.push({
+        description: "Purchased Items",
+        quantity: 1,
+        unitPrice: remainingAmount,
+        totalPrice: remainingAmount
+      });
+    } else if (remainingAmount > 0) {
+      // Add a miscellaneous item to account for the remaining amount
+      items.push({
+        description: "Additional Items",
+        quantity: 1,
+        unitPrice: remainingAmount,
+        totalPrice: remainingAmount
+      });
+    }
   }
   
   return items;
