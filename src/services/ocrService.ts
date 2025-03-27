@@ -1,4 +1,3 @@
-
 import { toast } from "@/hooks/use-toast";
 
 export interface OCRResult {
@@ -21,7 +20,7 @@ export interface OCRRequest {
 }
 
 // OCR.SPACE API key - in a real app, this should be stored securely
-const OCR_SPACE_API_KEY = "458506aa1b70658e6467907b27f2ae49e15303d3c361553243f269f9dfddf5e5"; // This is a free API key - replace with your own
+const OCR_SPACE_API_KEY = "K81844445688957"; // Updated API key for OCR.SPACE
 
 export const processReceiptWithOCR = async (file: File): Promise<OCRResult> => {
   try {
