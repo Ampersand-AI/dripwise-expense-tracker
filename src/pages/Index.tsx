@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, BarChart4, CreditCard, DollarSign, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -55,7 +54,7 @@ const HomePage = () => {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <CardStats
               title="Total Expenses"
-              value={<AnimatedNumber value={totalExpensesThisMonth} className="text-2xl font-bold" />}
+              value={totalExpensesThisMonth.toString()}
               description="This month"
               icon={<DollarSign className="h-4 w-4" />}
               trend={8.2}

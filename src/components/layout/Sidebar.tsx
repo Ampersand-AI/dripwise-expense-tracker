@@ -83,7 +83,7 @@ const Sidebar = () => {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton asChild active={isActive(item.path)}>
+                  <SidebarMenuButton asChild isActive={isActive(item.path)}>
                     <Link 
                       to={item.path} 
                       className={cn(
@@ -107,7 +107,7 @@ const Sidebar = () => {
       <SidebarFooter className="pb-4 px-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild active={isActive('/settings')}>
+            <SidebarMenuButton asChild isActive={isActive('/settings')}>
               <Link
                 to="/settings"
                 className={cn(
