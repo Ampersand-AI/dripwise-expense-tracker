@@ -1,16 +1,25 @@
-
 import React, { useState } from 'react';
-import { ArrowRight, Info, Receipt } from 'lucide-react';
+import { ArrowRight, Check, FileText, Info, Receipt } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import UploadZone from '@/components/ui-custom/UploadZone';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
+import { processReceiptWithOCR, OCRResult } from '@/services/ocrService';
+import { useNavigate } from 'react-router-dom';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { format } from 'date-fns';
+import { formatCurrency } from '@/utils/expense-utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const UploadPage = () => {
   const [files, setFiles] = useState<File[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [ocrResult, setOcrResult] = useState<OCRResult | null>(null);
+  const [showOcrResultDialog, setShowOcrResultDialog] = useState(false);
+  const navigate = useNavigate();
   
   const handleFilesAccepted = (acceptedFiles: File[]) => {
     setFiles(acceptedFiles);
@@ -20,6 +29,51 @@ const UploadPage = () => {
         title: "Files added",
         description: `${acceptedFiles.length} file(s) ready for processing`,
       });
+    }
+  };
+  
+  const handleProcessReceipts = async () => {
+    if (files.length === 0) {
+      toast({
+        title: "No files selected",
+        description: "Please upload a receipt to process",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsProcessing(true);
+    
+    try {
+      // Process the first file with OCR
+      const result = await processReceiptWithOCR(files[0]);
+      setOcrResult(result);
+      setShowOcrResultDialog(true);
+      
+      toast({
+        title: "Receipt processed",
+        description: "Successfully extracted information from your receipt",
+      });
+    } catch (error) {
+      console.error("Processing error:", error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  const handleConfirmReceipt = () => {
+    setShowOcrResultDialog(false);
+    
+    // Add the expense to our data
+    if (ocrResult) {
+      // In a real app, this would save to a database
+      toast({
+        title: "Expense added",
+        description: "Your receipt has been added to your expenses",
+      });
+      
+      // Navigate to expenses page
+      navigate('/expenses');
     }
   };
   
@@ -45,6 +99,28 @@ const UploadPage = () => {
             <Card>
               <CardContent className="p-6">
                 <UploadZone onFilesAccepted={handleFilesAccepted} />
+                
+                {files.length > 0 && (
+                  <div className="mt-4">
+                    <Button 
+                      onClick={handleProcessReceipts} 
+                      disabled={isProcessing} 
+                      className="w-full"
+                    >
+                      {isProcessing ? (
+                        <>
+                          <Skeleton className="h-4 w-4 rounded-full mr-2" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="h-4 w-4 mr-2" />
+                          Process Receipt{files.length > 1 ? 's' : ''}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
             
@@ -160,6 +236,83 @@ const UploadPage = () => {
           </div>
         </div>
       </div>
+      
+      {/* OCR Result Dialog */}
+      <Dialog open={showOcrResultDialog} onOpenChange={setShowOcrResultDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Receipt Details</DialogTitle>
+            <DialogDescription>
+              Review the information extracted from your receipt
+            </DialogDescription>
+          </DialogHeader>
+          
+          {ocrResult && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Vendor</p>
+                  <p className="font-medium">{ocrResult.vendor}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Date</p>
+                  <p className="font-medium">{ocrResult.date}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Amount</p>
+                  <p className="font-medium">{formatCurrency(ocrResult.total, ocrResult.currency)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Tax Amount</p>
+                  <p className="font-medium">{formatCurrency(ocrResult.taxAmount, ocrResult.currency)}</p>
+                </div>
+              </div>
+              
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Items</p>
+                <div className="space-y-2">
+                  {ocrResult.items.map((item, index) => (
+                    <div key={index} className="bg-accent/50 p-2 rounded-md">
+                      <div className="flex justify-between">
+                        <span>{item.description}</span>
+                        <span>{formatCurrency(item.totalPrice, ocrResult.currency)}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {item.quantity} x {formatCurrency(item.unitPrice, ocrResult.currency)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Receipt Image</p>
+                <div className="h-40 bg-muted rounded-md flex items-center justify-center overflow-hidden">
+                  {ocrResult.receiptImageUrl ? (
+                    <img 
+                      src={ocrResult.receiptImageUrl} 
+                      alt="Receipt" 
+                      className="object-contain h-full w-full" 
+                    />
+                  ) : (
+                    <p className="text-muted-foreground">Receipt preview not available</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowOcrResultDialog(false)}>
+              Edit
+            </Button>
+            <Button onClick={handleConfirmReceipt}>
+              <Check className="h-4 w-4 mr-2" />
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 };

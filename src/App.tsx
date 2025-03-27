@@ -12,6 +12,8 @@ import NotFound from "./pages/NotFound";
 import UploadPage from "./pages/UploadPage";
 import ExpensesPage from "./pages/ExpensesPage";
 import BudgetsPage from "./pages/BudgetsPage";
+import ReportsPage from "./pages/ReportsPage";
+import TaxPage from "./pages/TaxPage";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +29,8 @@ const App = () => (
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/expenses" element={<ExpensesPage />} />
             <Route path="/budgets" element={<BudgetsPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/tax" element={<TaxPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AnimatePresence>
