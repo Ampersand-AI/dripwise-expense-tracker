@@ -21,7 +21,7 @@ export interface OCRRequest {
 }
 
 // API key for OCR.space
-const OCR_API_KEY = "K81989846388957";  // Updated API key
+const OCR_API_KEY = "b82e03a3c989a27c5f04bf9d799d58c3243bc1fd4ea64718cec4172204d27ff7";  // Updated API key
 const OCR_API_URL = "https://api.ocr.space/parse/image";
 
 export const processReceiptWithOCR = async (file: File): Promise<OCRResult> => {
