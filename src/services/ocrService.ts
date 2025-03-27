@@ -20,18 +20,8 @@ export interface OCRRequest {
 }
 
 const OCR_API_URL = "https://api.ocr.space/parse/image";
-// We're using a more obfuscated approach to store the API key
-// Not directly visible in the code but still not secure for production
-const getApiKey = () => {
-  // This is just basic obfuscation, not true security
-  const parts = [
-    "b82e03a3c989a27c",
-    "5f04bf9d799d58c3",
-    "243bc1fd4ea64718",
-    "cec4172204d27ff7"
-  ];
-  return parts.join('');
-};
+// OCR.SPACE API key
+const API_KEY = "b82e03a3c989a27c5f04bf9d799d58c3243bc1fd4ea64718cec4172204d27ff7";
 
 export const processReceiptWithOCR = async (file: File): Promise<OCRResult> => {
   try {
@@ -44,7 +34,7 @@ export const processReceiptWithOCR = async (file: File): Promise<OCRResult> => {
     
     // Create form data for the API request
     const formData = new FormData();
-    formData.append('apikey', getApiKey());
+    formData.append('apikey', API_KEY);
     formData.append('file', file);
     formData.append('language', 'eng');
     formData.append('isTable', 'true');
