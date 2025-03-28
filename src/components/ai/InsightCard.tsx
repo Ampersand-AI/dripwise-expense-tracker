@@ -16,9 +16,14 @@ export interface AIInsight {
 interface InsightCardProps {
   insight: AIInsight;
   className?: string;
+  onAction?: () => void;
 }
 
-const InsightCard: React.FC<InsightCardProps> = ({ insight, className }) => {
+const InsightCard: React.FC<InsightCardProps> = ({ 
+  insight, 
+  className,
+  onAction 
+}) => {
   const { title, description, type } = insight;
 
   const getInsightIcon = () => {
@@ -31,6 +36,19 @@ const InsightCard: React.FC<InsightCardProps> = ({ insight, className }) => {
         return <TrendingUp className="h-5 w-5 text-blue-500" />;
       default:
         return <Bot className="h-5 w-5 text-indigo-500" />;
+    }
+  };
+
+  const getActionLabel = () => {
+    switch (type) {
+      case 'spending':
+        return "See details";
+      case 'savings':
+        return "Apply suggestion";
+      case 'trend':
+        return "View trend";
+      default:
+        return "Tell me more";
     }
   };
 
@@ -48,8 +66,8 @@ const InsightCard: React.FC<InsightCardProps> = ({ insight, className }) => {
         </div>
       </CardContent>
       <CardFooter className="flex justify-end p-2 bg-secondary/10">
-        <Button variant="ghost" size="sm" className="text-xs">
-          Tell me more
+        <Button variant="ghost" size="sm" className="text-xs" onClick={onAction}>
+          {getActionLabel()}
         </Button>
       </CardFooter>
     </Card>

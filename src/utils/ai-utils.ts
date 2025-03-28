@@ -61,3 +61,59 @@ export const generateSpendingInsights = async (
     summary: 'Your spending patterns show some opportunities for savings in food and beverages. Overall, your budget utilization is healthy.',
   };
 };
+
+// Types for suspicious activity detection
+export interface SuspiciousActivityRequest {
+  expenses: any[];
+  timeframe: 'week' | 'month';
+}
+
+export interface SuspiciousActivityResponse {
+  activities: {
+    id: string;
+    title: string;
+    description: string;
+    amount: number;
+    merchant: string;
+    date: Date;
+    type: 'duplicate' | 'unusual_amount' | 'unusual_merchant' | 'unusual_time';
+    confidence: number;
+  }[];
+}
+
+/**
+ * Function to detect suspicious activities in expenses
+ * This is a placeholder that would be implemented with the Gemini API
+ */
+export const detectSuspiciousActivities = async (
+  request: SuspiciousActivityRequest
+): Promise<SuspiciousActivityResponse> => {
+  console.log('Would use Gemini API with key:', GEMINI_API_KEY ? 'Available' : 'Not available');
+  
+  // For now, return mock data
+  // In production, this would call the Gemini API
+  return {
+    activities: [
+      {
+        id: 'susp-1',
+        title: 'Possible duplicate transaction',
+        description: 'You have two similar transactions at Starbucks on the same day.',
+        amount: 12.95,
+        merchant: 'Starbucks',
+        date: new Date(),
+        type: 'duplicate',
+        confidence: 0.92,
+      },
+      {
+        id: 'susp-2',
+        title: 'Unusual transaction amount',
+        description: 'This Uber expense is 3x higher than your typical rides.',
+        amount: 64.50,
+        merchant: 'Uber',
+        date: new Date(),
+        type: 'unusual_amount',
+        confidence: 0.78,
+      }
+    ]
+  };
+};
