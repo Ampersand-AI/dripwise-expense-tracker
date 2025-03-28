@@ -14,6 +14,7 @@ import ExpensesPage from "./pages/ExpensesPage";
 import BudgetsPage from "./pages/BudgetsPage";
 import ReportsPage from "./pages/ReportsPage";
 import TaxPage from "./pages/TaxPage";
+import SettingsPage from "./pages/SettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/budgets" element={<BudgetsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/tax" element={<TaxPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AnimatePresence>
