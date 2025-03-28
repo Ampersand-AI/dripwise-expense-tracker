@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, BarChart4, CreditCard, DollarSign, Upload } from 'lucide-react';
+import { ArrowRight, BarChart4, CreditCard, DollarSign, Upload, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import MainLayout from '@/components/layout/MainLayout';
@@ -14,6 +15,7 @@ import {
   generateSampleBudgetData,
   getRecentExpenses
 } from '@/utils/expense-utils';
+import AIInsightsSection from '@/components/ai/AIInsightsSection';
 
 const HomePage = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -85,6 +87,9 @@ const HomePage = () => {
             />
           </div>
         </section>
+        
+        {/* AI Insights Section */}
+        <AIInsightsSection />
         
         <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <div className="col-span-1 lg:col-span-2 space-y-4">
