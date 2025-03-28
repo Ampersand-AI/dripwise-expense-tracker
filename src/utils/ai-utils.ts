@@ -2,8 +2,8 @@
 // This file will contain utility functions for working with the Gemini API
 // For now, we just have a placeholder function that would be implemented later
 
-// Placeholder for Gemini API key integration
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+// Placeholder for Gemini API key integration - using Vite's env variable format
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 // Interfaces for AI insights
 export interface SpendingInsightRequest {
