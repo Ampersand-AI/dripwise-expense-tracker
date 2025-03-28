@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
@@ -38,7 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { generateSampleExpenses } from '@/utils/expense-utils';
+import { getExpenses } from '@/services/expenseService';
 
 const ExpensesPage = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -48,13 +47,19 @@ const ExpensesPage = () => {
   const [filter, setFilter] = useState('all');
   
   useEffect(() => {
-    // Simulate data loading
-    const timer = setTimeout(() => {
-      setExpenses(generateSampleExpenses(12));
-      setIsLoading(false);
-    }, 800);
+    // Load expenses from our service
+    const loadExpenses = () => {
+      try {
+        const loadedExpenses = getExpenses();
+        setExpenses(loadedExpenses);
+      } catch (error) {
+        console.error('Error loading expenses:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    return () => clearTimeout(timer);
+    loadExpenses();
   }, []);
   
   const handleExpenseClick = (expense: Expense) => {

@@ -1,4 +1,5 @@
 import { toast } from "@/hooks/use-toast";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export interface OCRResult {
   vendor: string;
@@ -19,9 +20,8 @@ export interface OCRRequest {
   file: File;
 }
 
-const OCR_API_URL = "https://api.ocr.space/parse/image";
-// OCR.SPACE API key
-const API_KEY = "b82e03a3c989a27c5f04bf9d799d58c3243bc1fd4ea64718cec4172204d27ff7";
+// Initialize Gemini API
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
 export const processReceiptWithOCR = async (file: File): Promise<OCRResult> => {
   try {
@@ -32,41 +32,119 @@ export const processReceiptWithOCR = async (file: File): Promise<OCRResult> => {
     
     console.log("OCR processing started for file:", file.name);
     
-    // Create form data for the API request
-    const formData = new FormData();
-    formData.append('apikey', API_KEY);
-    formData.append('file', file);
-    formData.append('language', 'eng');
-    formData.append('isTable', 'true');
-    formData.append('OCREngine', '2');
+    // Convert file to base64
+    const base64Image = await fileToBase64(file);
     
-    const response = await fetch(OCR_API_URL, {
-      method: 'POST',
-      body: formData,
-    });
+    // Initialize the model
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OCR API Error:', errorText);
-      throw new Error(`OCR API returned ${response.status}: ${errorText}`);
+    // Create the prompt for receipt analysis
+    const prompt = `Analyze this receipt image and extract the following information in JSON format:
+    {
+      "vendor": "store/merchant name",
+      "date": "YYYY-MM-DD format",
+      "total": number,
+      "currency": "currency code (USD, EUR, etc.)",
+      "taxAmount": number,
+      "items": [
+        {
+          "description": "item name",
+          "quantity": number,
+          "unitPrice": number,
+          "totalPrice": number
+        }
+      ]
     }
     
-    const data = await response.json();
-    console.log('OCR API Response:', data);
+    Important rules:
+    1. Extract the exact vendor name from the receipt header
+    2. Convert any date format to YYYY-MM-DD
+    3. Extract the final total amount (not subtotal)
+    4. Identify the currency from the receipt
+    5. Extract tax amount if available, otherwise estimate 8% of total
+    6. Extract all line items with their quantities and prices
+    7. Ensure all amounts are numbers (not strings)
+    8. If any field is missing or unclear, make a reasonable estimate
+    9. Return ONLY the JSON object, no additional text
+    10. Ensure the sum of all item totalPrices equals the total amount
+    11. For items without quantity, assume quantity of 1
+    12. For items without unitPrice, calculate it as totalPrice/quantity`;
+
+    // Generate content from the image
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          mimeType: file.type,
+          data: base64Image
+        }
+      }
+    ]);
+
+    const response = await result.response;
+    const text = response.text();
     
-    if (data.ErrorMessage || data.IsErroredOnProcessing) {
-      throw new Error(data.ErrorMessage || 'Failed to process the receipt');
+    // Extract JSON from the response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Failed to extract JSON from Gemini response');
     }
     
-    // Parse the OCR results
-    const result = parseOCRResults(data, file);
+    let receiptData;
+    try {
+      receiptData = JSON.parse(jsonMatch[0]);
+    } catch (error) {
+      console.error('Failed to parse Gemini response:', error);
+      throw new Error('Invalid JSON response from Gemini');
+    }
+    
+    // Validate and format the data
+    const formattedResult: OCRResult = {
+      vendor: receiptData.vendor || 'Unknown Vendor',
+      date: receiptData.date || new Date().toISOString().split('T')[0],
+      total: Number(receiptData.total) || 0,
+      currency: receiptData.currency || 'USD',
+      taxAmount: Number(receiptData.taxAmount) || 0,
+      items: (receiptData.items || []).map((item: any) => {
+        const quantity = Number(item.quantity) || 1;
+        const totalPrice = Number(item.totalPrice) || 0;
+        const unitPrice = Number(item.unitPrice) || (totalPrice / quantity);
+        
+        return {
+          description: item.description || 'Unknown Item',
+          quantity,
+          unitPrice,
+          totalPrice
+        };
+      }),
+      receiptImageUrl: URL.createObjectURL(file)
+    };
+    
+    // Validate the extracted data
+    if (!formattedResult.vendor || !formattedResult.date || !formattedResult.total || formattedResult.items.length === 0) {
+      throw new Error('Failed to extract essential receipt data');
+    }
+    
+    // Ensure items total matches the total amount
+    const itemsTotal = formattedResult.items.reduce((sum, item) => sum + item.totalPrice, 0);
+    if (Math.abs(itemsTotal - formattedResult.total) > 0.01) {
+      // Adjust the last item to match the total
+      if (formattedResult.items.length > 0) {
+        const lastItem = formattedResult.items[formattedResult.items.length - 1];
+        const difference = formattedResult.total - (itemsTotal - lastItem.totalPrice);
+        if (difference > 0) {
+          lastItem.totalPrice = difference;
+          lastItem.unitPrice = difference / lastItem.quantity;
+        }
+      }
+    }
     
     toast({
       title: "Receipt processed",
       description: "Successfully extracted information from your receipt",
     });
     
-    return result;
+    return formattedResult;
   } catch (error) {
     console.error('OCR processing error:', error);
     
@@ -82,328 +160,20 @@ export const processReceiptWithOCR = async (file: File): Promise<OCRResult> => {
 };
 
 /**
- * Parse the OCR results into our application's format
+ * Convert a File object to base64 string
  */
-function parseOCRResults(ocrData: any, file: File): OCRResult {
-  try {
-    // Get the parsed text from OCR
-    const parsedText = ocrData.ParsedResults?.[0]?.ParsedText || '';
-    console.log('Parsed Text:', parsedText);
-    
-    // Split text into lines for better processing
-    const lines = parsedText.split('\n').filter(line => line.trim().length > 0);
-    
-    // Extract vendor - usually at the top of the receipt
-    const vendor = extractVendor(lines);
-    
-    // Extract date using improved patterns
-    const date = extractDate(parsedText);
-    
-    // Extract total and currency
-    const { total, currency } = extractTotalAndCurrency(parsedText);
-    
-    // Extract tax amount with improved patterns
-    const taxAmount = extractTaxAmount(parsedText, total);
-    
-    // Extract line items with improved method
-    const items = extractLineItems(parsedText, total);
-    
-    return {
-      vendor,
-      date,
-      total,
-      currency,
-      taxAmount,
-      items,
-      receiptImageUrl: URL.createObjectURL(file)
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const base64String = reader.result as string;
+      // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+      const base64 = base64String.split(',')[1];
+      resolve(base64);
     };
-  } catch (error) {
-    console.error('Error parsing OCR results:', error);
-    // Fallback to mock data if parsing fails
-    return createMockReceiptData(file);
-  }
-}
-
-/**
- * Extract vendor name from receipt lines
- */
-function extractVendor(lines: string[]): string {
-  // Try different methods to identify vendor
-  
-  // Method 1: Look for specific labels
-  for (const line of lines) {
-    const vendorMatch = line.match(/(?:store|vendor|merchant|business):\s*([^\n]+)/i);
-    if (vendorMatch) return vendorMatch[1].trim();
-  }
-  
-  // Method 2: Check for common patterns in receipt headers
-  const possibleVendorLines = lines.slice(0, 3); // First 3 lines often contain vendor
-  for (const line of possibleVendorLines) {
-    // Look for all caps text which is often the merchant name
-    if (/^[A-Z]{2,}/.test(line) && line.length > 3) {
-      return line.trim();
-    }
-    
-    // Look for title case words which might be merchant name
-    if (/^[A-Z][a-z]+(\s+[A-Z][a-z]+)+$/.test(line)) {
-      return line.trim();
-    }
-  }
-  
-  // Method 3: Just take the first non-empty line if other methods fail
-  if (lines.length > 0) {
-    return lines[0].trim();
-  }
-  
-  return 'Unknown Vendor';
-}
-
-/**
- * Extract date from receipt text using improved patterns
- */
-function extractDate(text: string): string {
-  // Try multiple date formats
-  const datePatterns = [
-    // MM/DD/YYYY or DD/MM/YYYY
-    /(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})/,
-    // YYYY-MM-DD
-    /(\d{4})[\/\.-](\d{1,2})[\/\.-](\d{1,2})/,
-    // Month name formats
-    /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2})[\s,]+(\d{2,4})/i,
-    // Written date with year
-    /(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s,]+(\d{2,4})/i
-  ];
-  
-  for (const pattern of datePatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      try {
-        const today = new Date();
-        // Different handling based on pattern
-        if (pattern.toString().includes('Jan|Feb|Mar')) {
-          // Month name format
-          const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-          const monthIndex = monthNames.findIndex(m => match[1].toLowerCase().startsWith(m));
-          if (monthIndex !== -1) {
-            const day = parseInt(match[2]);
-            let year = parseInt(match[3]);
-            if (year < 100) year += 2000; // Fix 2-digit years
-            return `${year}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-          }
-        } else {
-          // Numeric format - try to determine MM/DD vs DD/MM
-          const part1 = parseInt(match[1]);
-          const part2 = parseInt(match[2]);
-          const part3 = parseInt(match[3]);
-          
-          // If first part is > 12, it's probably DD/MM format
-          if (pattern.toString().includes('YYYY') || part1 > 1000) {
-            // YYYY-MM-DD
-            return `${part1}-${part2.toString().padStart(2, '0')}-${part3.toString().padStart(2, '0')}`;
-          } else if (part1 > 12) {
-            // DD/MM/YYYY
-            let year = part3;
-            if (year < 100) year += 2000; // Fix 2-digit years
-            return `${year}-${part2.toString().padStart(2, '0')}-${part1.toString().padStart(2, '0')}`;
-          } else {
-            // MM/DD/YYYY
-            let year = part3;
-            if (year < 100) year += 2000; // Fix 2-digit years
-            return `${year}-${part1.toString().padStart(2, '0')}-${part2.toString().padStart(2, '0')}`;
-          }
-        }
-      } catch (e) {
-        console.error('Error parsing date:', e);
-      }
-    }
-  }
-  
-  // Default to today if no date found
-  const today = new Date();
-  return today.toISOString().split('T')[0];
-}
-
-/**
- * Extract total amount and currency from receipt
- */
-function extractTotalAndCurrency(text: string): { total: number, currency: string } {
-  // Look for total patterns with improved regex
-  const totalPatterns = [
-    // "Total: $XX.XX" or "TOTAL $XX.XX"
-    /(?:total|amount|sum|due|balance|price)[\s:]*[\$\€\£\¥]?\s*(\d+[.,]\d+)/i,
-    // "$XX.XX" at the end of lines or with "total" nearby
-    /(?:total|amount|sum|due).{0,15}?[\$\€\£\¥]\s*(\d+[.,]\d+)/i,
-    // Look for currency symbol with amount
-    /([\$\€\£\¥])\s*(\d+[.,]\d+)/,
-    // Look for digits with decimal at the bottom of the receipt
-    /(\d+[.,]\d{2})\s*$/m
-  ];
-  
-  let extractedTotal = 0;
-  let extractedCurrency = 'USD'; // Default
-  
-  for (const pattern of totalPatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      // Determine which group contains the amount
-      let amount;
-      if (match[2] && !isNaN(parseFloat(match[2].replace(',', '.')))) {
-        amount = parseFloat(match[2].replace(',', '.'));
-        
-        // Check if group 1 contains a currency symbol
-        if (match[1] === '€') extractedCurrency = 'EUR';
-        else if (match[1] === '£') extractedCurrency = 'GBP';
-        else if (match[1] === '¥') extractedCurrency = 'JPY';
-      } else {
-        amount = parseFloat(match[1].replace(',', '.'));
-        
-        // Check if the amount is preceded by a currency symbol
-        const preCurrencyCheck = text.substring(Math.max(0, text.indexOf(match[0]) - 1), text.indexOf(match[0]));
-        if (preCurrencyCheck === '€') extractedCurrency = 'EUR';
-        else if (preCurrencyCheck === '£') extractedCurrency = 'GBP';
-        else if (preCurrencyCheck === '¥') extractedCurrency = 'JPY';
-      }
-      
-      if (!isNaN(amount) && amount > 0) {
-        // If we found a larger total, use that (receipts often have multiple amounts)
-        if (amount > extractedTotal) {
-          extractedTotal = amount;
-        }
-      }
-    }
-  }
-  
-  // If no total found, generate a random one
-  if (extractedTotal === 0) {
-    extractedTotal = Math.floor(Math.random() * 100) + 10 + Math.random();
-    extractedTotal = parseFloat(extractedTotal.toFixed(2));
-  }
-  
-  return { total: extractedTotal, currency: extractedCurrency };
-}
-
-/**
- * Extract tax amount from receipt
- */
-function extractTaxAmount(text: string, total: number): number {
-  const taxPatterns = [
-    /(?:tax|vat|gst|hst)[\s:]*[\$\€\£\¥]?\s*(\d+[.,]\d+)/i,
-    /(?:tax|vat|gst|hst).{0,15}?[\$\€\£\¥]\s*(\d+[.,]\d+)/i
-  ];
-  
-  for (const pattern of taxPatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      const amount = parseFloat(match[1].replace(',', '.'));
-      if (!isNaN(amount) && amount > 0 && amount < total) {
-        return amount;
-      }
-    }
-  }
-  
-  // If no tax found, estimate as a percentage of total
-  return parseFloat((total * 0.08).toFixed(2));
-}
-
-/**
- * Extract line items from receipt text with improved logic
- */
-function extractLineItems(text: string, total: number): OCRResult['items'] {
-  const items: OCRResult['items'] = [];
-  const lines = text.split('\n');
-  
-  // Method 1: Look for item/price patterns on each line
-  const itemRegex = /^(.{3,40})\s+(\d+(?:[.,]\d+)?)\s*$/;
-  const itemWithQuantityRegex = /^(.{3,30})\s+(\d+)\s+[xX]\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)?\s*$/;
-  
-  for (const line of lines) {
-    // Try quantity x price format first
-    const qtyMatch = line.match(itemWithQuantityRegex);
-    if (qtyMatch) {
-      const description = qtyMatch[1].trim();
-      const quantity = parseInt(qtyMatch[2]);
-      const unitPrice = parseFloat(qtyMatch[3].replace(',', '.'));
-      const totalPrice = qtyMatch[4] 
-        ? parseFloat(qtyMatch[4].replace(',', '.'))
-        : quantity * unitPrice;
-      
-      if (description.length > 2 && quantity > 0 && unitPrice > 0 && totalPrice < total) {
-        items.push({
-          description,
-          quantity,
-          unitPrice,
-          totalPrice
-        });
-        continue;
-      }
-    }
-    
-    // Try simple item price format
-    const simpleMatch = line.match(itemRegex);
-    if (simpleMatch) {
-      const description = simpleMatch[1].trim();
-      const price = parseFloat(simpleMatch[2].replace(',', '.'));
-      
-      // Filter out likely non-items
-      if (description.length > 2 && !description.match(/total|tax|subtotal|sum|amount|balance|change|cash/i) && 
-          price > 0 && price < total * 0.9) {
-        items.push({
-          description,
-          quantity: 1,
-          unitPrice: price,
-          totalPrice: price
-        });
-      }
-    }
-  }
-  
-  // Method 2: Look for potential item descriptions followed by numbers
-  if (items.length === 0) {
-    const itemPattern = /(.{3,30})\s+(\d+(?:[.,]\d+)?)/g;
-    let match;
-    
-    while ((match = itemPattern.exec(text)) !== null) {
-      const description = match[1].trim();
-      const price = parseFloat(match[2].replace(',', '.'));
-      
-      // Filter out likely non-items and duplicates
-      if (price > 0 && price < total * 0.9 && description.length > 2 && 
-          !description.match(/total|tax|subtotal|sum|amount|balance|change|cash/i) && 
-          !items.some(item => item.description === description)) {
-        items.push({
-          description,
-          quantity: 1,
-          unitPrice: price,
-          totalPrice: price
-        });
-      }
-    }
-  }
-  
-  // If no items found or total doesn't match expected total, create a default item
-  if (items.length === 0 || items.reduce((sum, item) => sum + item.totalPrice, 0) < total * 0.5) {
-    const existingTotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
-    const remainingAmount = total - existingTotal;
-    
-    if (remainingAmount > 0 && items.length === 0) {
-      items.push({
-        description: "Purchased Items",
-        quantity: 1,
-        unitPrice: remainingAmount,
-        totalPrice: remainingAmount
-      });
-    } else if (remainingAmount > 0) {
-      // Add a miscellaneous item to account for the remaining amount
-      items.push({
-        description: "Additional Items",
-        quantity: 1,
-        unitPrice: remainingAmount,
-        totalPrice: remainingAmount
-      });
-    }
-  }
-  
-  return items;
+    reader.onerror = error => reject(error);
+  });
 }
 
 /**

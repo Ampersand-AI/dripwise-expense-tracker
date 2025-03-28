@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { format } from 'date-fns';
 import { formatCurrency } from '@/utils/expense-utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { addExpense } from '@/services/expenseService';
 
 const UploadPage = () => {
   const [files, setFiles] = useState<File[]>([]);
@@ -49,13 +50,13 @@ const UploadPage = () => {
       const result = await processReceiptWithOCR(files[0]);
       setOcrResult(result);
       setShowOcrResultDialog(true);
-      
-      toast({
-        title: "Receipt processed",
-        description: "Successfully extracted information from your receipt",
-      });
     } catch (error) {
       console.error("Processing error:", error);
+      toast({
+        title: "Processing Failed",
+        description: "We couldn't process your receipt. Please try again or upload a clearer image.",
+        variant: "destructive",
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -66,14 +67,23 @@ const UploadPage = () => {
     
     // Add the expense to our data
     if (ocrResult) {
-      // In a real app, this would save to a database
-      toast({
-        title: "Expense added",
-        description: "Your receipt has been added to your expenses",
-      });
-      
-      // Navigate to expenses page
-      navigate('/expenses');
+      try {
+        const newExpense = addExpense(ocrResult);
+        toast({
+          title: "Expense added",
+          description: "Your receipt has been added to your expenses",
+        });
+        
+        // Navigate to expenses page
+        navigate('/expenses');
+      } catch (error) {
+        console.error('Error adding expense:', error);
+        toast({
+          title: "Error",
+          description: "Failed to add the expense. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
   
@@ -256,7 +266,7 @@ const UploadPage = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Date</p>
-                  <p className="font-medium">{ocrResult.date}</p>
+                  <p className="font-medium">{format(new Date(ocrResult.date), 'MMM d, yyyy')}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Amount</p>
@@ -272,13 +282,15 @@ const UploadPage = () => {
                 <p className="text-sm text-muted-foreground mb-2">Items</p>
                 <div className="space-y-2">
                   {ocrResult.items.map((item, index) => (
-                    <div key={index} className="bg-accent/50 p-2 rounded-md">
-                      <div className="flex justify-between">
-                        <span>{item.description}</span>
-                        <span>{formatCurrency(item.totalPrice, ocrResult.currency)}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {item.quantity} x {formatCurrency(item.unitPrice, ocrResult.currency)}
+                    <div key={index} className="bg-accent/50 p-3 rounded-md">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="font-medium">{item.description}</span>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {item.quantity} x {formatCurrency(item.unitPrice, ocrResult.currency)}
+                          </div>
+                        </div>
+                        <span className="font-medium">{formatCurrency(item.totalPrice, ocrResult.currency)}</span>
                       </div>
                     </div>
                   ))}
@@ -287,7 +299,7 @@ const UploadPage = () => {
               
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Receipt Image</p>
-                <div className="h-40 bg-muted rounded-md flex items-center justify-center overflow-hidden">
+                <div className="h-48 bg-muted rounded-md flex items-center justify-center overflow-hidden">
                   {ocrResult.receiptImageUrl ? (
                     <img 
                       src={ocrResult.receiptImageUrl} 
