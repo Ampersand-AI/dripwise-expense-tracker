@@ -3,7 +3,7 @@
 // For now, we just have a placeholder function that would be implemented later
 
 // Gemini API key integration - using Vite's env variable format
-const GEMINI_API_KEY = 'AIzaSyCTRdzlULGXlmC7qXlt-aimyNVFFkl1rw4' || import.meta.env.VITE_GEMINI_API_KEY || '';
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCTRdzlULGXlmC7qXlt-aimyNVFFkl1rw4';
 
 // Interfaces for AI insights
 export interface SpendingInsightRequest {

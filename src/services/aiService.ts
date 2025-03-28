@@ -2,7 +2,7 @@
 import { detectSuspiciousActivities, generateSpendingInsights } from '@/utils/ai-utils';
 
 // Gemini API key is now directly available in the ai-utils.ts file
-const GEMINI_API_KEY = 'AIzaSyCTRdzlULGXlmC7qXlt-aimyNVFFkl1rw4';
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCTRdzlULGXlmC7qXlt-aimyNVFFkl1rw4';
 
 // Function to analyze expenses and generate insights using Gemini API
 export const analyzeExpenses = async (expenses: any[], timeframe: 'week' | 'month' | 'quarter' | 'year') => {
