@@ -1,9 +1,8 @@
 
 import { detectSuspiciousActivities, generateSpendingInsights } from '@/utils/ai-utils';
 
-// Placeholder for Gemini API key integration - ideally this should be on the server-side
-// For demonstration purposes, we're using it client-side
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
+// Gemini API key is now directly available in the ai-utils.ts file
+const GEMINI_API_KEY = 'AIzaSyCTRdzlULGXlmC7qXlt-aimyNVFFkl1rw4';
 
 // Function to analyze expenses and generate insights using Gemini API
 export const analyzeExpenses = async (expenses: any[], timeframe: 'week' | 'month' | 'quarter' | 'year') => {
@@ -12,16 +11,7 @@ export const analyzeExpenses = async (expenses: any[], timeframe: 'week' | 'mont
     // that handles the Gemini API with proper authentication
     console.log('Using Gemini API with key:', GEMINI_API_KEY ? 'Available' : 'Not available');
     
-    if (!GEMINI_API_KEY) {
-      console.warn('Gemini API key not found. Using mock data instead.');
-      // Fallback to mock data if no API key is available
-      return generateSpendingInsights({ expenses, timeframe });
-    }
-    
-    // This is a placeholder for the actual Gemini API call
-    // In production, this should be a server-side call to protect your API key
-    
-    // For now, returning mock data
+    // For now, returning mock data from the utility function
     return generateSpendingInsights({ expenses, timeframe });
   } catch (error) {
     console.error('Error analyzing expenses:', error);
@@ -34,15 +24,7 @@ export const detectAnomalies = async (expenses: any[], timeframe: 'week' | 'mont
   try {
     console.log('Using Gemini API with key:', GEMINI_API_KEY ? 'Available' : 'Not available');
     
-    if (!GEMINI_API_KEY) {
-      console.warn('Gemini API key not found. Using mock data instead.');
-      // Fallback to mock data if no API key is available
-      return detectSuspiciousActivities({ expenses, timeframe });
-    }
-    
-    // Placeholder for actual Gemini API call
-    
-    // For now, returning mock data
+    // For now, returning mock data from the utility function
     return detectSuspiciousActivities({ expenses, timeframe });
   } catch (error) {
     console.error('Error detecting anomalies:', error);

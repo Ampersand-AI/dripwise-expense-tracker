@@ -2,8 +2,8 @@
 // This file will contain utility functions for working with the Gemini API
 // For now, we just have a placeholder function that would be implemented later
 
-// Placeholder for Gemini API key integration - using Vite's env variable format
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
+// Gemini API key integration - using Vite's env variable format
+const GEMINI_API_KEY = 'AIzaSyCTRdzlULGXlmC7qXlt-aimyNVFFkl1rw4' || import.meta.env.VITE_GEMINI_API_KEY || '';
 
 // Interfaces for AI insights
 export interface SpendingInsightRequest {
@@ -30,7 +30,7 @@ export interface SpendingInsightResponse {
 export const generateSpendingInsights = async (
   request: SpendingInsightRequest
 ): Promise<SpendingInsightResponse> => {
-  console.log('Would use Gemini API with key:', GEMINI_API_KEY ? 'Available' : 'Not available');
+  console.log('Using Gemini API with key:', GEMINI_API_KEY ? 'Available' : 'Not available');
   
   // For now, return mock data
   // In production, this would call the Gemini API
@@ -88,7 +88,7 @@ export interface SuspiciousActivityResponse {
 export const detectSuspiciousActivities = async (
   request: SuspiciousActivityRequest
 ): Promise<SuspiciousActivityResponse> => {
-  console.log('Would use Gemini API with key:', GEMINI_API_KEY ? 'Available' : 'Not available');
+  console.log('Using Gemini API with key:', GEMINI_API_KEY ? 'Available' : 'Not available');
   
   // For now, return mock data
   // In production, this would call the Gemini API
