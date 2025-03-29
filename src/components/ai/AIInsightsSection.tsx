@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Bot, Shield, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,10 @@ import SuspiciousActivityCard, { SuspiciousActivity } from './SuspiciousActivity
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { analyzeExpenses, detectAnomalies } from '@/services/aiService';
+import { 
+  SpendingInsightResponse, 
+  SuspiciousActivityResponse 
+} from '@/utils/ai-interfaces';
 
 const AIInsightsSection: React.FC = () => {
   const [insights, setInsights] = useState<AIInsight[]>([]);
@@ -23,15 +26,15 @@ const AIInsightsSection: React.FC = () => {
   const fetchInsights = async () => {
     setLoading(true);
     try {
-      // Mock expenses data - in a real app, you would get this from your expense store
-      const mockExpenses = [
+      // Prepare sample expense data
+      const expenses = [
         { amount: 25.99, category: 'Food', merchant: 'Starbucks', date: new Date() },
         { amount: 45.50, category: 'Transportation', merchant: 'Uber', date: new Date() },
         { amount: 120.75, category: 'Shopping', merchant: 'Amazon', date: new Date() }
       ];
       
-      const response = await analyzeExpenses(mockExpenses, 'month');
-      const formattedInsights = response.insights.map(insight => ({
+      const response = await analyzeExpenses(expenses, 'month');
+      const formattedInsights = (response as SpendingInsightResponse).insights.map(insight => ({
         ...insight,
         date: new Date()
       }));
@@ -44,6 +47,9 @@ const AIInsightsSection: React.FC = () => {
         description: "We had trouble analyzing your spending. Please try again later.",
         variant: "destructive"
       });
+      
+      // Set empty insights in case of error
+      setInsights([]);
     } finally {
       setLoading(false);
     }
@@ -51,17 +57,19 @@ const AIInsightsSection: React.FC = () => {
 
   const fetchSuspiciousActivities = async () => {
     try {
-      // Mock expenses data
-      const mockExpenses = [
+      // Prepare sample expense data
+      const expenses = [
         { amount: 25.99, category: 'Food', merchant: 'Starbucks', date: new Date() },
         { amount: 25.99, category: 'Food', merchant: 'Starbucks', date: new Date() }, // Duplicate
         { amount: 145.50, category: 'Transportation', merchant: 'Uber', date: new Date() } // Unusual amount
       ];
       
-      const response = await detectAnomalies(mockExpenses, 'week');
-      setActivities(response.activities);
+      const response = await detectAnomalies(expenses, 'week');
+      setActivities((response as SuspiciousActivityResponse).activities);
     } catch (error) {
       console.error('Error fetching suspicious activities:', error);
+      // Set empty activities in case of error
+      setActivities([]);
     }
   };
 

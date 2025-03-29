@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, BarChart4, CreditCard, DollarSign, Upload, Sparkles } from 'lucide-react';
+import { ArrowRight, BarChart4, CreditCard, DollarSign, Upload, Sparkles, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import MainLayout from '@/components/layout/MainLayout';
@@ -12,29 +11,34 @@ import AnimatedNumber from '@/components/ui-custom/AnimatedNumber';
 import { Link } from 'react-router-dom';
 import { 
   generateSampleExpenses, 
-  generateSampleBudgetData,
   getRecentExpenses
 } from '@/utils/expense-utils';
 import AIInsightsSection from '@/components/ai/AIInsightsSection';
+import { SignedIn, SignedOut } from '@clerk/clerk-react';
 
 const HomePage = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   
   useEffect(() => {
-    // Simulate data loading
-    const timer = setTimeout(() => {
-      setExpenses(generateSampleExpenses(15));
-      setIsLoading(false);
-    }, 600);
-    
-    return () => clearTimeout(timer);
+    // In a real implementation, this would fetch expenses from an API
+    setIsLoading(false);
   }, []);
   
   const recentExpenses = getRecentExpenses(expenses, 3);
-  const budgetData = generateSampleBudgetData();
-  const totalExpensesThisMonth = 4920;
-  const totalBudget = 8000;
+  const budgetData = [
+    { name: 'Food', budget: 0, spent: 0, value: 0, color: '#3b82f6' },
+    { name: 'Travel', budget: 0, spent: 0, value: 0, color: '#8b5cf6' },
+    { name: 'Office', budget: 0, spent: 0, value: 0, color: '#10b981' }
+  ];
+  const totalExpensesThisMonth = 0;
+  const totalBudget = 0;
+  
+  // Helper function to create auth URLs with redirect parameters
+  const getAuthUrl = (path: string) => {
+    const currentUrl = encodeURIComponent(window.location.href);
+    return `${path}?redirect_url=${currentUrl}`;
+  };
   
   return (
     <MainLayout>
@@ -53,37 +57,61 @@ const HomePage = () => {
             </div>
           </div>
           
+          <SignedOut>
+            <div className="bg-primary/10 rounded-xl p-6 mb-8 border border-border/5">
+              <div className="max-w-3xl mx-auto text-center">
+                <h2 className="text-2xl font-bold mb-3">Sign in to manage your expenses</h2>
+                <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
+                  Track expenses, manage budgets, and get AI-powered insights to optimize your spending.
+                </p>
+                <div className="flex justify-center gap-4">
+                  <Button size="lg" asChild>
+                    <Link to={getAuthUrl('/sign-in')}>
+                      <LogIn className="h-4 w-4 mr-2" />
+                      Sign In
+                    </Link>
+                  </Button>
+                  <Button size="lg" variant="outline" asChild>
+                    <Link to={getAuthUrl('/sign-up')}>
+                      Create Account
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </SignedOut>
+          
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <CardStats
               title="Total Expenses"
-              value={totalExpensesThisMonth.toString()}
+              value="$0"
               description="This month"
               icon={<DollarSign className="h-4 w-4" />}
-              trend={8.2}
+              trend={0}
             />
             
             <CardStats
               title="Pending Receipts"
-              value="4"
+              value="0"
               description="Awaiting processing"
               icon={<CreditCard className="h-4 w-4" />}
-              trend={-2.1}
+              trend={0}
             />
             
             <CardStats
               title="Budget Utilization"
-              value={`${Math.round((totalExpensesThisMonth / totalBudget) * 100)}%`}
+              value="0%"
               description="Monthly budget"
               icon={<BarChart4 className="h-4 w-4" />}
-              trend={5.3}
+              trend={0}
             />
             
             <CardStats
               title="Tax Refund Estimate"
-              value="$1,245"
+              value="$0"
               description="Based on current expenses"
               icon={<DollarSign className="h-4 w-4" />}
-              trend={12.7}
+              trend={0}
             />
           </div>
         </section>
@@ -126,7 +154,7 @@ const HomePage = () => {
                 ))}
                 
                 {recentExpenses.length === 0 && (
-                  <div className="text-center py-8 border rounded-lg bg-muted/30">
+                  <div className="text-center py-8 border border-border/5 rounded-lg bg-muted/30">
                     <p className="text-muted-foreground">No recent expenses to show</p>
                     <Button variant="outline" size="sm" className="mt-4" asChild>
                       <Link to="/upload">
@@ -148,24 +176,24 @@ const HomePage = () => {
               <div className="space-y-3">
                 <ProgressCard
                   title="Food & Dining"
-                  current={850}
-                  total={1200}
+                  current={0}
+                  total={0}
                   unit="$"
                   description="Monthly budget"
                 />
                 
                 <ProgressCard
                   title="Travel"
-                  current={2100}
-                  total={3000}
+                  current={0}
+                  total={0}
                   unit="$"
                   description="Monthly budget"
                 />
                 
                 <ProgressCard
                   title="Office Supplies"
-                  current={650}
-                  total={800}
+                  current={0}
+                  total={0}
                   unit="$"
                   description="Monthly budget"
                 />
@@ -179,7 +207,7 @@ const HomePage = () => {
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.4, delay: 0.2 }}
-            className="col-span-full bg-primary/5 rounded-xl p-6 border border-primary/10"
+            className="col-span-full bg-primary/5 rounded-xl p-6 border border-border/5"
           >
             <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
               <div>

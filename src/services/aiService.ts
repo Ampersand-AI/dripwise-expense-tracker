@@ -1,33 +1,58 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { 
+  SpendingInsightRequest, 
+  SpendingInsightResponse,
+  SuspiciousActivityRequest,
+  SuspiciousActivityResponse
+} from "@/utils/ai-interfaces";
 
-import { detectSuspiciousActivities, generateSpendingInsights } from '@/utils/ai-utils';
+// Gemini API key from environment variables
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-// Gemini API key is now directly available in the ai-utils.ts file
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyCTRdzlULGXlmC7qXlt-aimyNVFFkl1rw4';
+// Initialize the Gemini API
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
 // Function to analyze expenses and generate insights using Gemini API
-export const analyzeExpenses = async (expenses: any[], timeframe: 'week' | 'month' | 'quarter' | 'year') => {
+export const analyzeExpenses = async (
+  expenses: any[], 
+  timeframe: 'week' | 'month' | 'quarter' | 'year'
+): Promise<SpendingInsightResponse> => {
   try {
-    // In a production environment, this would make an API call to a secure backend
-    // that handles the Gemini API with proper authentication
-    console.log('Using Gemini API with key:', GEMINI_API_KEY ? 'Available' : 'Not available');
-    
-    // For now, returning mock data from the utility function
-    return generateSpendingInsights({ expenses, timeframe });
+    if (!genAI) {
+      throw new Error('Gemini API key not available');
+    }
+
+    // In a real implementation, this would call the Gemini API with the expenses data
+    throw new Error('AI expense analysis not yet implemented');
   } catch (error) {
     console.error('Error analyzing expenses:', error);
-    throw new Error('Failed to analyze expenses');
+    
+    // Return an empty response structure
+    return {
+      insights: [],
+      summary: 'No insights available'
+    };
   }
 };
 
-// Function to detect suspicious activities in transactions using Gemini API
-export const detectAnomalies = async (expenses: any[], timeframe: 'week' | 'month') => {
+// Function to detect anomalies/suspicious activities in expense data
+export const detectAnomalies = async (
+  expenses: any[],
+  timeframe: 'week' | 'month'
+): Promise<SuspiciousActivityResponse> => {
   try {
-    console.log('Using Gemini API with key:', GEMINI_API_KEY ? 'Available' : 'Not available');
+    if (!genAI) {
+      throw new Error('Gemini API key not available');
+    }
     
-    // For now, returning mock data from the utility function
-    return detectSuspiciousActivities({ expenses, timeframe });
+    // In a real implementation, this would call the Gemini API
+    throw new Error('Anomaly detection not yet implemented');
   } catch (error) {
     console.error('Error detecting anomalies:', error);
-    throw new Error('Failed to detect anomalies');
+    
+    // Return an empty response structure
+    return {
+      activities: []
+    };
   }
 };

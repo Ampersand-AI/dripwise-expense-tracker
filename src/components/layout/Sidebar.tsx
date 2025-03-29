@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
@@ -8,7 +7,12 @@ import {
   Home, 
   Receipt, 
   Settings, 
-  Upload 
+  Upload,
+  LogIn,
+  UserPlus,
+  ChevronLeft,
+  ChevronRight,
+  Menu
 } from 'lucide-react';
 import { 
   Sidebar as ShadcnSidebar, 
@@ -21,18 +25,23 @@ import {
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
-  SidebarMenuButton
+  SidebarMenuButton,
+  useSidebar
 } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 
 const Sidebar = () => {
   const location = useLocation();
+  const { isSignedIn } = useAuth();
+  const { toggleSidebar, open, setOpen } = useSidebar();
   
   const isActive = (path: string) => {
     return location.pathname === path;
   };
 
-  const menuItems = [
+  const authenticatedMenuItems = [
     {
       title: 'Home',
       icon: Home,
@@ -65,20 +74,60 @@ const Sidebar = () => {
     },
   ];
 
+  const unauthenticatedMenuItems = [
+    {
+      title: 'Home',
+      icon: Home,
+      path: '/',
+    },
+    {
+      title: 'Sign In',
+      icon: LogIn,
+      path: '/sign-in',
+    },
+    {
+      title: 'Sign Up',
+      icon: UserPlus,
+      path: '/sign-up',
+    },
+  ];
+
+  const menuItems = isSignedIn ? authenticatedMenuItems : unauthenticatedMenuItems;
+
   return (
-    <ShadcnSidebar>
-      <SidebarHeader className="flex items-center justify-center p-4">
-        <Link to="/" className="flex items-center space-x-2">
-          <span className="bg-primary/10 text-primary p-2 rounded-md">
-            <CreditCard className="h-6 w-6" />
-          </span>
-          <span className="text-xl font-semibold">Drip</span>
-        </Link>
+    <ShadcnSidebar className="shadow-none">
+      <SidebarHeader className="flex items-center justify-between p-4">
+        {open ? (
+          <>
+            <Link to="/" className="flex items-center space-x-2">
+              <span className="bg-primary/10 text-primary p-2 rounded-md">
+                <CreditCard className="h-6 w-6" />
+              </span>
+              <span className="text-xl font-semibold">Drip</span>
+            </Link>
+          </>
+        ) : (
+          <div className="flex flex-col items-center w-full space-y-2">
+            <Link to="/" className="flex items-center justify-center">
+              <span className="bg-primary/10 text-primary p-2 rounded-md">
+                <CreditCard className="h-6 w-6" />
+              </span>
+            </Link>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setOpen(true)}
+              className="h-8 w-8"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </SidebarHeader>
       
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          {open && <SidebarGroupLabel>Navigation</SidebarGroupLabel>}
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
@@ -87,14 +136,15 @@ const Sidebar = () => {
                     <Link 
                       to={item.path} 
                       className={cn(
-                        "flex items-center space-x-3 py-2 px-3 rounded-md transition-colors",
+                        "flex items-center py-2 px-3 rounded-md transition-colors",
+                        open ? "space-x-3" : "justify-center",
                         isActive(item.path) 
                           ? "bg-primary/10 text-primary" 
                           : "hover:bg-accent"
                       )}
                     >
                       <item.icon className="h-5 w-5" />
-                      <span>{item.title}</span>
+                      {open && <span>{item.title}</span>}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -104,26 +154,29 @@ const Sidebar = () => {
         </SidebarGroup>
       </SidebarContent>
       
-      <SidebarFooter className="pb-4 px-4">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/settings')}>
-              <Link
-                to="/settings"
-                className={cn(
-                  "flex items-center space-x-3 py-2 px-3 rounded-md transition-colors",
-                  isActive('/settings') 
-                    ? "bg-primary/10 text-primary" 
-                    : "hover:bg-accent"
-                )}
-              >
-                <Settings className="h-5 w-5" />
-                <span>Settings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
+      <SignedIn>
+        <SidebarFooter className="pb-4 px-4">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={isActive('/settings')}>
+                <Link
+                  to="/settings"
+                  className={cn(
+                    "flex items-center py-2 px-3 rounded-md transition-colors",
+                    open ? "space-x-3" : "justify-center",
+                    isActive('/settings') 
+                      ? "bg-primary/10 text-primary" 
+                      : "hover:bg-accent"
+                  )}
+                >
+                  <Settings className="h-5 w-5" />
+                  {open && <span>Settings</span>}
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </SignedIn>
     </ShadcnSidebar>
   );
 };

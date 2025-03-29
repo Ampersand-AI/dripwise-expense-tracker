@@ -1,22 +1,20 @@
-
 import React from 'react';
-import { Bell, Moon, Search, Sun, User } from 'lucide-react';
+import { Bell, Moon, Search, Sun, PanelLeft, PanelRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { useToast } from '@/hooks/use-toast';
+import { UserButton, useAuth } from '@clerk/clerk-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { dark } from '@clerk/themes';
 
 const Navbar = () => {
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const { toast } = useToast();
+  const { isSignedIn } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { toggleSidebar, open, setOpen } = useSidebar();
   
   const toggleDarkMode = () => {
     if (isDarkMode) {
@@ -34,10 +32,24 @@ const Navbar = () => {
     });
   };
 
+  const handleSignIn = () => {
+    const currentUrl = encodeURIComponent(window.location.href);
+    navigate(`/sign-in?redirect_url=${currentUrl}`);
+  };
+
   return (
-    <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-30">
+    <header className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-30">
       <div className="flex h-16 items-center px-4 md:px-6">
         <div className="flex items-center">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setOpen(!open)}
+            className="md:flex hidden mr-2 h-9 w-9 hover:bg-accent"
+            aria-label="Toggle sidebar"
+          >
+            {open ? <PanelRight className="h-5 w-5" /> : <PanelLeft className="h-5 w-5" />}
+          </Button>
           <SidebarTrigger className="md:hidden mr-2">
             <Button variant="ghost" size="icon" className="h-9 w-9">
               <span className="sr-only">Toggle sidebar</span>
@@ -74,25 +86,27 @@ const Navbar = () => {
             <Bell className="h-[1.2rem] w-[1.2rem]" />
           </Button>
           
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className="rounded-full h-9 w-9 overflow-hidden"
-              >
-                <User className="h-[1.2rem] w-[1.2rem]" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Billing</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Log out</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {isSignedIn ? (
+            <UserButton 
+              appearance={{
+                baseTheme: dark,
+                elements: {
+                  userButtonAvatarBox: "w-9 h-9",
+                  userButtonBox: "w-9 h-9"
+                }
+              }}
+              afterSignOutUrl="/"
+              signInUrl="/sign-in"
+            />
+          ) : (
+            <Button 
+              variant="ghost" 
+              className="rounded-full"
+              onClick={handleSignIn}
+            >
+              Sign in
+            </Button>
+          )}
         </div>
       </div>
     </header>

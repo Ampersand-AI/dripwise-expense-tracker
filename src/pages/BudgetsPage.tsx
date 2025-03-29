@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import MainLayout from '@/components/layout/MainLayout';
@@ -27,40 +26,38 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Plus } from 'lucide-react';
-import { generateSampleBudgetData } from '@/utils/expense-utils';
 import ProgressCard from '@/components/ui-custom/ProgressCard';
 import BudgetChart from '@/components/expense/BudgetChart';
+import { Link } from 'react-router-dom';
 
 const BudgetsPage = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [budgetData, setBudgetData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [budgetData, setBudgetData] = useState<any[]>([
+    { name: 'Food', budget: 0, spent: 0, value: 0 },
+    { name: 'Travel', budget: 0, spent: 0, value: 0 },
+    { name: 'Office', budget: 0, spent: 0, value: 0 },
+    { name: 'Entertainment', budget: 0, spent: 0, value: 0 },
+    { name: 'Utilities', budget: 0, spent: 0, value: 0 },
+    { name: 'Miscellaneous', budget: 0, spent: 0, value: 0 }
+  ]);
   
-  useEffect(() => {
-    // Simulate data loading
-    const timer = setTimeout(() => {
-      setBudgetData(generateSampleBudgetData());
-      setIsLoading(false);
-    }, 600);
-    
-    return () => clearTimeout(timer);
-  }, []);
-  
+  // Empty monthly spending data
   const monthlySpendingData = [
-    { name: 'Jan', amount: 4200 },
-    { name: 'Feb', amount: 3800 },
-    { name: 'Mar', amount: 5100 },
-    { name: 'Apr', amount: 4500 },
-    { name: 'May', amount: 3900 },
-    { name: 'Jun', amount: 4800 },
-    { name: 'Jul', amount: 5200 },
-    { name: 'Aug', amount: 4920 },
+    { name: 'Jan', amount: 0 },
+    { name: 'Feb', amount: 0 },
+    { name: 'Mar', amount: 0 },
+    { name: 'Apr', amount: 0 },
+    { name: 'May', amount: 0 },
+    { name: 'Jun', amount: 0 },
+    { name: 'Jul', amount: 0 },
+    { name: 'Aug', amount: 0 },
     { name: 'Sep', amount: 0 },
     { name: 'Oct', amount: 0 },
     { name: 'Nov', amount: 0 },
     { name: 'Dec', amount: 0 },
   ];
   
-  const monthlyBudget = 8000;
+  const monthlyBudget = 0;
   
   const categoryNames = budgetData.map(item => item.name);
   const categoryValues = budgetData.map(item => item.spent);
@@ -125,12 +122,12 @@ const BudgetsPage = () => {
                 
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
-                    <span>August Spending</span>
-                    <span className="font-medium">${monthlySpendingData[7].amount.toLocaleString()}</span>
+                    <span>Current Month Spending</span>
+                    <span className="font-medium">$0</span>
                   </div>
-                  <Progress value={Math.min(100, (monthlySpendingData[7].amount / monthlyBudget) * 100)} className="h-2" />
+                  <Progress value={0} className="h-2" />
                   <p className="text-xs text-muted-foreground">
-                    {Math.round((monthlySpendingData[7].amount / monthlyBudget) * 100)}% of monthly budget used
+                    0% of monthly budget used
                   </p>
                 </div>
               </div>
@@ -147,42 +144,28 @@ const BudgetsPage = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Total Budget</span>
-                    <span className="font-medium">$8,000</span>
+                    <span className="font-medium">$0</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Total Spent</span>
-                    <span className="font-medium">$4,920</span>
+                    <span className="font-medium">$0</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Remaining</span>
-                    <span className="font-medium text-green-600">$3,080</span>
+                    <span className="font-medium text-green-600">$0</span>
                   </div>
                 </div>
                 
                 <div>
                   <h4 className="text-sm font-medium mb-4">Budget Health</h4>
                   <div className="bg-green-500/20 text-green-700 border border-green-500/30 rounded-md px-3 py-2 text-sm">
-                    You're on track with your monthly budget!
+                    No budget data available yet.
                   </div>
                 </div>
                 
                 <div>
                   <h4 className="text-sm font-medium mb-2">Categories Over Budget</h4>
-                  {budgetData.filter(item => item.spent > item.value * 0.9).length > 0 ? (
-                    <div className="space-y-2">
-                      {budgetData
-                        .filter(item => item.spent > item.value * 0.9)
-                        .map((item, index) => (
-                          <div key={index} className="bg-amber-500/20 text-amber-700 border border-amber-500/30 rounded-md px-3 py-2 text-sm">
-                            {item.name}: ${item.spent.toLocaleString()} of ${item.value.toLocaleString()}
-                            ({Math.round((item.spent / item.value) * 100)}%)
-                          </div>
-                        ))
-                      }
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No categories are over budget.</p>
-                  )}
+                  <p className="text-sm text-muted-foreground">No categories are over budget.</p>
                 </div>
               </div>
             </CardContent>
@@ -253,14 +236,14 @@ const BudgetsPage = () => {
                     <Line 
                       name="Food" 
                       data={[
-                        { name: 'Jan', value: 820 },
-                        { name: 'Feb', value: 750 },
-                        { name: 'Mar', value: 900 },
-                        { name: 'Apr', value: 800 },
-                        { name: 'May', value: 780 },
-                        { name: 'Jun', value: 820 },
-                        { name: 'Jul', value: 880 },
-                        { name: 'Aug', value: 850 }
+                        { name: 'Jan', value: 0 },
+                        { name: 'Feb', value: 0 },
+                        { name: 'Mar', value: 0 },
+                        { name: 'Apr', value: 0 },
+                        { name: 'May', value: 0 },
+                        { name: 'Jun', value: 0 },
+                        { name: 'Jul', value: 0 },
+                        { name: 'Aug', value: 0 }
                       ]} 
                       dataKey="value" 
                       stroke="#3b82f6" 
@@ -270,14 +253,14 @@ const BudgetsPage = () => {
                     <Line 
                       name="Travel" 
                       data={[
-                        { name: 'Jan', value: 2100 },
-                        { name: 'Feb', value: 1800 },
-                        { name: 'Mar', value: 2700 },
-                        { name: 'Apr', value: 2200 },
-                        { name: 'May', value: 1900 },
-                        { name: 'Jun', value: 2400 },
-                        { name: 'Jul', value: 2600 },
-                        { name: 'Aug', value: 2100 }
+                        { name: 'Jan', value: 0 },
+                        { name: 'Feb', value: 0 },
+                        { name: 'Mar', value: 0 },
+                        { name: 'Apr', value: 0 },
+                        { name: 'May', value: 0 },
+                        { name: 'Jun', value: 0 },
+                        { name: 'Jul', value: 0 },
+                        { name: 'Aug', value: 0 }
                       ]} 
                       dataKey="value" 
                       stroke="#8b5cf6" 
@@ -287,14 +270,14 @@ const BudgetsPage = () => {
                     <Line 
                       name="Office" 
                       data={[
-                        { name: 'Jan', value: 450 },
-                        { name: 'Feb', value: 420 },
-                        { name: 'Mar', value: 500 },
-                        { name: 'Apr', value: 480 },
-                        { name: 'May', value: 460 },
-                        { name: 'Jun', value: 520 },
-                        { name: 'Jul', value: 610 },
-                        { name: 'Aug', value: 650 }
+                        { name: 'Jan', value: 0 },
+                        { name: 'Feb', value: 0 },
+                        { name: 'Mar', value: 0 },
+                        { name: 'Apr', value: 0 },
+                        { name: 'May', value: 0 },
+                        { name: 'Jun', value: 0 },
+                        { name: 'Jul', value: 0 },
+                        { name: 'Aug', value: 0 }
                       ]} 
                       dataKey="value" 
                       stroke="#10b981" 
@@ -315,27 +298,13 @@ const BudgetsPage = () => {
             <CardContent>
               <div className="space-y-6">
                 <div className="border rounded-md p-4 bg-primary/5">
-                  <h4 className="font-medium mb-2 text-primary">Save 15% on Travel Expenses</h4>
+                  <h4 className="font-medium mb-2 text-primary">No Recommendations Available</h4>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Based on your spending patterns, you could save approximately $315 per month by booking travel accommodations at least 3 weeks in advance.
+                    Budget recommendations will appear here once you have sufficient expense data.
                   </p>
-                  <Button variant="outline" size="sm">Apply Recommendation</Button>
-                </div>
-                
-                <div className="border rounded-md p-4 bg-primary/5">
-                  <h4 className="font-medium mb-2 text-primary">Food Budget Adjustment</h4>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Your food expenses have been consistently under budget by about 10%. Consider reallocating $120 to other categories.
-                  </p>
-                  <Button variant="outline" size="sm">Adjust Budget</Button>
-                </div>
-                
-                <div className="border rounded-md p-4 bg-primary/5">
-                  <h4 className="font-medium mb-2 text-primary">Office Supplies Alert</h4>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Office supplies spending is trending 15% higher month-over-month. Review recent purchases to identify potential savings.
-                  </p>
-                  <Button variant="outline" size="sm">Review Expenses</Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/upload">Upload Expenses</Link>
+                  </Button>
                 </div>
               </div>
             </CardContent>

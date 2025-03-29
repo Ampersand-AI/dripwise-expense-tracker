@@ -1,12 +1,16 @@
 import { Expense } from '@/components/expense/ExpenseCard';
 import { OCRResult } from './ocrService';
+import { compressImage } from '@/utils/image-utils';
 
 // In a real app, this would be stored in a database
 let expenses: Expense[] = [];
 
-export const addExpense = (ocrResult: OCRResult): Expense => {
+export const addExpense = async (ocrResult: OCRResult, file: File): Promise<Expense> => {
   // Generate a unique ID
   const id = `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Compress the receipt image
+  const compressedImage = await compressImage(file);
   
   // Create a new expense from OCR result
   const newExpense: Expense = {
@@ -17,7 +21,7 @@ export const addExpense = (ocrResult: OCRResult): Expense => {
     category: 'Uncategorized', // Default category
     vendor: ocrResult.vendor,
     status: 'pending',
-    receiptUrl: ocrResult.receiptImageUrl,
+    receiptUrl: compressedImage, // Store the compressed image
     currency: ocrResult.currency
   };
   

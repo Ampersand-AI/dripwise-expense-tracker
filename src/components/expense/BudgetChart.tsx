@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   PieChart, 
@@ -65,7 +64,7 @@ const BudgetChart: React.FC<BudgetChartProps> = ({ data, className }) => {
       const remaining = data.value - data.spent;
       
       return (
-        <div className="bg-background/90 backdrop-blur-sm p-3 border shadow-sm rounded-md">
+        <div className="bg-background/90 backdrop-blur-sm p-3 border border-border/5 shadow-sm rounded-md">
           <p className="font-semibold">{data.name}</p>
           <div className="mt-1 space-y-1 text-sm">
             <p className="text-muted-foreground flex justify-between">

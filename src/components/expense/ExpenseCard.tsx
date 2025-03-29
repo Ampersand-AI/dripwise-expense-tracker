@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -142,7 +141,7 @@ const ExpenseCard: React.FC<ExpenseCardProps> = ({
         </div>
       </CardContent>
       
-      <CardFooter className="px-4 py-3 border-t flex justify-between items-center bg-card">
+      <CardFooter className="px-4 py-3 border-t border-border/5 flex justify-between items-center bg-card">
         <Button variant="ghost" size="sm" className="h-8 text-xs">
           <Receipt className="h-3.5 w-3.5 mr-1" />
           View Receipt

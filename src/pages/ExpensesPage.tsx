@@ -255,8 +255,16 @@ const ExpensesPage = () => {
                 
                 <div className="pt-2">
                   <p className="text-sm text-muted-foreground mb-2">Receipt Image</p>
-                  <div className="h-40 bg-muted rounded-md flex items-center justify-center">
-                    <p className="text-muted-foreground">Receipt preview</p>
+                  <div className="h-40 bg-muted rounded-md flex items-center justify-center overflow-hidden">
+                    {selectedExpense.receiptUrl ? (
+                      <img 
+                        src={selectedExpense.receiptUrl} 
+                        alt="Receipt" 
+                        className="object-contain h-full w-full" 
+                      />
+                    ) : (
+                      <p className="text-muted-foreground">Receipt preview not available</p>
+                    )}
                   </div>
                 </div>
                 

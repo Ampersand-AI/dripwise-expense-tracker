@@ -1,0 +1,49 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+}
+
+.primary {
+  background-color: #3366FF;
+  color: white;
+  border: none;
+}
+
+.primary:hover {
+  background-color: #2952CC;
+}
+
+.secondary {
+  background-color: transparent;
+  color: #E0E0E0;
+  border: 1px solid #3A3A3A;
+}
+
+.secondary:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.icon {
+  margin-right: 0.5rem;
+}
+
+.small {
+  font-size: 0.875rem;
+  padding: 0.375rem 0.75rem;
+}
+
+.medium {
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+}
+
+.large {
+  font-size: 1.125rem;
+  padding: 0.625rem 1.25rem;
+} 

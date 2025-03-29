@@ -150,12 +150,12 @@ export const processReceiptWithOCR = async (file: File): Promise<OCRResult> => {
     
     toast({
       title: "OCR Processing Failed",
-      description: "Using backup mock data instead",
+      description: "Failed to extract data from receipt. Please try again with a clearer image.",
       variant: "destructive",
     });
     
-    // Fallback to mock data if processing fails
-    return createMockReceiptData(file);
+    // Instead of mock data, throw an error that can be caught by the caller
+    throw new Error('Failed to process receipt with OCR');
   }
 };
 
@@ -174,90 +174,4 @@ async function fileToBase64(file: File): Promise<string> {
     };
     reader.onerror = error => reject(error);
   });
-}
-
-/**
- * Creates simulated receipt data as a fallback
- */
-function createMockReceiptData(file: File): OCRResult {
-  console.log("Creating mock data for file:", file.name);
-  
-  // Generate random data based on file name to simulate different receipts
-  const seed = file.name.length + file.size;
-  const random = (max: number) => Math.floor((seed * Math.random()) % max);
-  
-  // Pick a vendor from common options
-  const vendors = [
-    'Amazon', 'Starbucks', 'Office Depot', 
-    'Uber', 'Walmart', 'Target', 
-    'Apple Store', 'Best Buy', 'Home Depot',
-    'Whole Foods', 'Costco', 'CVS Pharmacy'
-  ];
-  const vendor = vendors[random(vendors.length)];
-  
-  // Generate a random recent date
-  const today = new Date();
-  const pastDate = new Date(today);
-  pastDate.setDate(today.getDate() - random(30)); // Random date within the last 30 days
-  const date = pastDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-  
-  // Generate random total amount between $10 and $200
-  const total = parseFloat((10 + random(190) + Math.random()).toFixed(2));
-  
-  // Default to USD but occasionally use other currencies
-  const currencies = ['USD', 'EUR', 'GBP', 'CAD'];
-  const currencyIndex = random(10) < 8 ? 0 : random(3) + 1; // 80% chance of USD
-  const currency = currencies[currencyIndex];
-  
-  // Calculate tax (typically 5-10% of total)
-  const taxRate = (5 + random(5)) / 100;
-  const taxAmount = parseFloat((total * taxRate).toFixed(2));
-  
-  // Generate between 1 and 5 random items
-  const itemCount = 1 + random(4);
-  const items = [];
-  let itemsTotal = 0;
-  
-  const itemDescriptions = [
-    'Coffee', 'Office Supplies', 'Electronics', 
-    'Books', 'Groceries', 'Hardware', 
-    'Software', 'Services', 'Membership',
-    'Food', 'Transportation', 'Utilities'
-  ];
-  
-  for (let i = 0; i < itemCount; i++) {
-    const quantity = 1 + random(3);
-    const unitPrice = parseFloat((1 + random(50) + Math.random()).toFixed(2));
-    const totalPrice = parseFloat((quantity * unitPrice).toFixed(2));
-    
-    items.push({
-      description: itemDescriptions[random(itemDescriptions.length)],
-      quantity: quantity,
-      unitPrice: unitPrice,
-      totalPrice: totalPrice
-    });
-    
-    itemsTotal += totalPrice;
-  }
-  
-  // Adjust the last item to make the total match if needed
-  if (items.length > 0 && Math.abs(itemsTotal - total) > 0.1) {
-    const lastItem = items[items.length - 1];
-    const difference = total - (itemsTotal - lastItem.totalPrice);
-    if (difference > 0) {
-      // Adjust the quantity to match the total
-      lastItem.quantity = Math.ceil(difference / lastItem.unitPrice);
-      lastItem.totalPrice = parseFloat((lastItem.quantity * lastItem.unitPrice).toFixed(2));
-    }
-  }
-  
-  return {
-    vendor,
-    date,
-    total,
-    currency,
-    taxAmount,
-    items,
-    receiptImageUrl: URL.createObjectURL(file)
-  };
 }

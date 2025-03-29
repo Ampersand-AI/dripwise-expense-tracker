@@ -62,13 +62,13 @@ const UploadPage = () => {
     }
   };
   
-  const handleConfirmReceipt = () => {
+  const handleConfirmReceipt = async () => {
     setShowOcrResultDialog(false);
     
     // Add the expense to our data
-    if (ocrResult) {
+    if (ocrResult && files.length > 0) {
       try {
-        const newExpense = addExpense(ocrResult);
+        const newExpense = await addExpense(ocrResult, files[0]);
         toast({
           title: "Expense added",
           description: "Your receipt has been added to your expenses",
